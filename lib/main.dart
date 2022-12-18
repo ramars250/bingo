@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -76,123 +77,159 @@ class BingoView extends StatefulWidget {
   State<BingoView> createState() => _BingoViewState();
 }
 
-class _BingoViewState extends State<BingoView> {
+class _BingoViewState extends State<BingoView> with TickerProviderStateMixin {
+  //輸入的變數
   int number = 0;
-  int select = 0;
-  int showNum = 0;
+  //被選中的變數
+  int select = -1;
+  //被選中的列表
   List selectNum = [];
+  //輸入數字的列表
   List numList = [];
-  List selList = [];
+  //選中列表
   List choose = [];
+  //動畫控制器
+  late AnimationController _controller;
+  //補間動畫
+  late final Animation<num> _animation =
+      Tween<num>(begin: 1, end: number).animate(_controller);
 
   @override
   void initState() {
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 30),
+      vsync: this,
+    );
     number = int.parse(widget.text);
     numList = List.generate(number, (index) => index + 1);
-    print(numList);
     super.initState();
   }
 
   @override
-  Widget build(BuildContext context) {
-    // dynamic obj = ModalRoute.of(context)?.settings.arguments;
-    // number = obj;
-    // numList = List.generate(number, (index) => index + 1);
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('BINGO'),
-          centerTitle: true,
-        ),
-        body: Column(
+      appBar: AppBar(
+        title: const Text('BINGO'),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height / 2,
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 9,
-                ),
+            GridView.builder(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 45),
+                shrinkWrap: true,
                 itemCount: number,
                 itemBuilder: (_, index) {
                   bool isSelect = selectNum.contains(index);
                   return Container(
-                    height: 30,
-                    width: 30,
                     decoration: BoxDecoration(
                       color: isSelect ? Colors.red : Colors.green,
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(10000),
                     ),
                     child: Center(
                       child: Text("${index + 1}"),
                     ),
                   );
-                },
-              ),
-              // GridView.count(
-              //   crossAxisCount: 9,
-              //   children: List.generate(number, (index) {
-              //     bool isSelect = selectNum.contains(index);
-              //     return Center(
-              //       child: Container(
-              //         height: 50,
-              //         width: 50,
-              //         decoration: BoxDecoration(
-              //           color: isSelect ? Colors.red : Colors.green,
-              //           borderRadius: BorderRadius.circular(30),
-              //         ),
-              //         child: Center(
-              //           child: Text("${index + 1}"),
-              //         ),
-              //       ),
-              //     );
-              //   }),
-              // ),
-            ),
+                }),
             SizedBox(
-              height: 30,
-              width: 50,
+              height: 40,
               child: TextButton(
                 onPressed: () {
-                  // select = Random().nextInt(numList.length);
-                  // while (selectNum.contains(select) ||
-                  //     selectNum.length == numList.length) {
-                  //   Random().nextInt(numList.length);
-                  // }
-                  do {
-                    select = Random().nextInt(numList.length);
-                  } while (selectNum.contains(select) ||
-                      selectNum.length == numList.length);
                   setState(() {
-                    print(select);
-                    selectNum.contains(select) ? null : selectNum.add(select);
-                    print(selectNum);
-                    choose.add(select + 1);
+                    select = -1;
+                    _controller.repeat();
                   });
+                  showDialog(
+                      context: context,
+                      builder: (_) {
+                        return buildDialog();
+                      });
                 },
-                child: const Text("點擊"),
+                child: const Text("抽選"),
               ),
             ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height / 4,
-              child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 10),
-                  itemCount: choose.length,
-                  itemBuilder: (_, index) {
-                    return Container(
-                      height: 30,
-                      width: 30,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Center(
-                        child: Text("${choose[index]}"),
-                      ),
-                    );
-                  }),
-            )
+            GridView.builder(
+                shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 45),
+                itemCount: choose.length,
+                itemBuilder: (_, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10000),
+                    ),
+                    child: Center(
+                      child: Text("${choose[index]}"),
+                    ),
+                  );
+                })
           ],
-        ));
+        ),
+      ),
+    );
+  }
+
+  Dialog buildDialog() {
+    return Dialog(
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(
+        Radius.circular(10000),
+      )),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            do {
+              select = Random().nextInt(numList.length);
+            } while (selectNum.contains(select));
+            selectNum.contains(select) ? null : selectNum.add(select);
+            choose.add(select + 1);
+            // print(select);
+          });
+          _controller.reset();
+          Timer(const Duration(seconds: 3), () {
+            Navigator.pop(context);
+          });
+        },
+        child: Container(
+          height: 300,
+          width: 300,
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.all(
+              Radius.circular(10000),
+            ),
+            color: Colors.red,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Center(
+                child: AnimatedBuilder(
+                  animation: _controller.drive(
+                    IntTween(begin: 1, end: number),
+                  ),
+                  builder: (context, Widget? child) {
+                    return Text(
+                      select == -1
+                          ? _animation.value.toStringAsFixed(0)
+                          : "${select + 1}",
+                      style: const TextStyle(fontSize: 96),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
